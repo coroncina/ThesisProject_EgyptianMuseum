@@ -1,0 +1,94 @@
+import cherrypy
+import json
+import time
+import requests
+
+class TimingTool(cherrypy.Tool):
+    def __init__(self):
+        cherrypy.Tool.__init__(self, 'on_start_resource',
+                               self.start_timer,
+                               priority=95)
+
+    def _setup(self):
+        cherrypy.Tool._setup(self)
+        cherrypy.request.hooks.attach('on_end_request',
+                                      self.end_timer,
+                                      priority=5)
+
+    def start_timer(self):
+        cherrypy.request._time = time.time()
+
+    def end_timer(self):
+        duration = time.time() - cherrypy.request._time
+        cherrypy.log("Page handler took %.4f" % duration)
+
+cherrypy.tools.timeit = TimingTool()
+
+class Sensor_Artwork_WebService(object):
+
+    exposed = True
+    #@cherrypy.tools.timeit()
+    def GET(self, *uri, **params):
+
+        #read the json file with the artworks info in the hash table
+        try:
+            file_hash = open("hash_table_sensorID_artworkID", "r")
+            sens_art_dict = json.loads(file_hash.read())
+            file_hash.close()
+        except:
+            raise KeyError("***** ERROR IN READING HASH TABLE JSON FILE *****")
+
+        #receive the sensorID(in the URL) from the client with a get, and take the artworkID from the file that
+        # i read as a dict at the point above
+        if uri[0]=="artwork_info":
+            #prendo valore effettivo del sensorID
+            sensorID_rx = params.get('sensorID')
+            print("\n- RECEIVED SENSOR ID is: "+str(sensorID_rx))
+            #cerco il sensorID nell'hash_table
+            for key, val in sens_art_dict.items():
+                if sensorID_rx == key:
+                    artworkID = val
+                    print("- FOUND ARTWORK ID is: ", str(artworkID))
+                    #lo trovo e lo salvo nel payload che poi manderò all' artworkDB SUPPORT
+                    payload = {'artworkID': artworkID}
+
+        #Adesso prendo ip e porta dell'artwork DB support che
+        try:
+            file_conf = open("config_file_TIC_to_ArtDB", "r")
+            conf_artDB = json.loads(file_conf.read())
+            file_conf.close()
+        except:
+            raise KeyError("***** ERROR IN READING ARTWORK DB SUPPORT FILE *****")
+
+        artDB_ip = conf_artDB["allegroDBsupport"]["IP"]
+        artDB_port = conf_artDB["allegroDBsupport"]["port"]
+
+        s = requests.Session()
+        URL = artDB_ip + ":" + artDB_port + "/artworkDB_key"
+        resp = s.get(URL, params=payload)
+        print("- RISPOSTA RICEVUTA DA ARTWORK DB: "+str(resp.content))
+
+
+        ##### ----- QUI VA INSERITO L'INVIO DELL'ID ad artworkDB SUPPORT che mi torna poi i dati e li metto dentro il return
+
+        return resp.text
+
+if __name__ == '__main__':
+
+
+    conf = {
+        '/': {
+            'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
+            'tools.sessions.on': True,
+            'tools.response_headers.on': True,
+            'tools.response_headers.headers': [('Content-Type', 'text/plain')],
+            #'tools.sessions.storage_type': 'file',
+            #'tools.sessions.storage_path': 'path',
+            #'tools.sessions.timeout': 60
+        }
+    }
+
+    cherrypy.tree.mount(Sensor_Artwork_WebService(), '/', conf)
+    cherrypy.config.update("server_UPM.conf")       #port
+    cherrypy.engine.start()
+    cherrypy.engine.block()

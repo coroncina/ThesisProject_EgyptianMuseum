@@ -7,14 +7,16 @@ from pymongo import MongoClient
 
 """json
 {
-    "visitatore": {
-        "id_visitatore": "CarlaC",
-        "opera": {
-            "id_opera": "",
-            "tempo_impiegato": 333,
-            "apprezzamento": 5,
-            "info_ricevute": 3
-        }
+    'visitatore': {
+        'id_visitatore': 'CarlaC',
+        'opere': [
+            {'opera': {
+                'id_opera': 'Cat.8888',
+                'tempo_impiegato': 98,
+                'apprezzamento': 1,
+                'info_ricevute': 1 }
+            }
+        ]
     }
 }
 """
@@ -65,7 +67,7 @@ def mongoDBManager(new_entry):
 
 
 @cherrypy.expose
-class StringGeneratorWebService(object):
+class UpdateDatabaseWebService(object):
 
     @cherrypy.tools.accept(media='text/plain')
     def GET(self):
@@ -105,7 +107,7 @@ if __name__ == '__main__':
     #cherrypy.quickstart(StringGeneratorWebService(), '/', conf)
 
     #fare configfile
-    cherrypy.tree.mount(StringGeneratorWebService(), '/', conf)
+    cherrypy.tree.mount(UpdateDatabaseWebService(), '/', conf)
     cherrypy.config.update("server_UPM.conf")       #port
     cherrypy.engine.start()
     cherrypy.engine.block()

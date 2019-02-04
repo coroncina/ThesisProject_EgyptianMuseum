@@ -33,9 +33,10 @@ for visit in visitor_profiles.find({'visitatore.id_visitatore':visitor['visitato
     #se uguale, fai check opera
     #NB: entra qui dentro solo se lo trova!!!
     found = 1
-    visitor_profiles.update(
+    c=visitor_profiles.update(
         {'visitatore.id_visitatore': id_user},
         {"$addToSet": {'visitatore.opere': opera}})
+    print(c)
 
 if (found==0):
     #THIS MEANS THAT IS A NEW VISITOR ARRIVED
